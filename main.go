@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cnovak/emporia"
@@ -64,7 +65,20 @@ func main() {
 
 		usages, err := client.GetDeviceListUsages(maps.Keys(devices), emporia.Second, emporia.KilowattHours, time.Now())
 		if err != nil {
-			log.Fatalf("Error getting device usages: %v", err)
+			// The client doesn't do re-auth, so we have to do it ourselves here
+			if strings.Contains(err.Error(), "unauthorized") {
+				log.Printf("Re-authenticating the client")
+				err = client.Authenticate(username, password)
+				if err != nil {
+					log.Fatalf("Re-authentication failed: %v", err)
+				}
+
+				usages, err = client.GetDeviceListUsages(maps.Keys(devices), emporia.Second, emporia.KilowattHours, time.Now())
+			}
+
+			if err != nil {
+				log.Fatalf("Error getting device usages: %v", err)
+			}
 		}
 
 		for _, device := range usages.Devices {
